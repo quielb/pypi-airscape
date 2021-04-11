@@ -115,9 +115,7 @@ class Fan:
             # There is a line in the text that has some control characters
             # Those break converting JSON.  Clean it out then JSON->DICT
             clean_list = re.findall(
-                r"(?!\s+.*server_response\".*$)^\s+\"\w+.*",
-                api.text,
-                re.M
+                r"(?!\s+.*server_response\".*$)^\s+\"\w+.*", api.text, re.M
             )
             clean_text = "{ " + "\n".join(clean_list) + " }"
             self._data = json.loads(clean_text)
@@ -134,9 +132,7 @@ class Fan:
         4: Turn off (slowing down to speed of 0 does not turn off fan)
         """
         try:
-            requests.get(
-                self._command_api, params={"dir": cmd}, timeout=self._timeout
-            )
+            requests.get(self._command_api, params={"dir": cmd}, timeout=self._timeout)
         except requests.exceptions.ConnectionError:
             raise ex.ConnectionError from requests.exceptions.ConnectionError
         except requests.exceptions.ReadTimeout:
