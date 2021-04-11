@@ -13,10 +13,10 @@ README = (HERE / "README.md").read_text()
 setup(
     name="airscape",
     version=airscape.__version__,
-    description="An interface to control AirScape Whole House Fans",
+    description="An interface to control an AirScape Whole House Fan",
     long_description=README,
     long_description_content_type="text/markdown",
-    url="https://github.com/quielb/pypi",
+    url="https://github.com/quielb/pypi-airscape",
     author="Barry Quiel",
     author_email="barry.quiel@gmail.com",
     license="GPL",

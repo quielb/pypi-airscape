@@ -1,5 +1,5 @@
 """Module for Controlling AirScape Whole House Fans."""
-__version__ = "0.1.7"
+__version__ = "0.1.7.1"
 
 import re
 import json
@@ -96,6 +96,10 @@ class Fan:
         if 2 <= self._data["fanspd"] <= 10:
             self.set_device_state(3)
 
+    def add_time(self):
+        """ Use the API to add 1 hour to the shutoff timer."""
+        self.set_device_state(2)
+
     def get_device_state(self):
         """Get refresh data from fan.
 
@@ -111,9 +115,7 @@ class Fan:
             # There is a line in the text that has some control characters
             # Those break converting JSON.  Clean it out then JSON->DICT
             clean_list = re.findall(
-                r"(?!\s+.*server_response\".*$)^\s+\"\w+.*",
-                api.text,
-                re.M
+                r"(?!\s+.*server_response\".*$)^\s+\"\w+.*", api.text, re.M
             )
             clean_text = "{ " + "\n".join(clean_list) + " }"
             self._data = json.loads(clean_text)
@@ -125,14 +127,12 @@ class Fan:
         Calls the fan API via GET.  Only has one supported parameter: dir
         Possible int values for dir:
         1: speed up (also causes fan to turn on)
-        2: Add an hour to the shutoff timer (not implemented in this code)
+        2: Add an hour to the shutoff timer
         3: slow down one speed increment
         4: Turn off (slowing down to speed of 0 does not turn off fan)
         """
         try:
-            requests.get(
-                self._command_api, params={"dir": cmd}, timeout=self._timeout
-            )
+            requests.get(self._command_api, params={"dir": cmd}, timeout=self._timeout)
         except requests.exceptions.ConnectionError:
             raise ex.ConnectionError from requests.exceptions.ConnectionError
         except requests.exceptions.ReadTimeout:

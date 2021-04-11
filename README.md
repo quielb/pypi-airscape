@@ -15,20 +15,23 @@ Constructor takes 2 arguments.  The IP or hostname (if you DNS registered your f
 The timeout is optional and has a default value of 5.
 
 ### Fan Control
-The fan has 2 attributes to control:
-* on
+The fan has 3 attributes to control:
+* on/off
 * speed
+* timer
 ```python
->>> fan.on
+>>> fan.is_on
 False
->>> fan.on = True
->>> fan.on
+>>> fan.is_on = True
+>>> fan.is_on
 True
 >>> fan.speed
 2
 >>> fan.speed = 5
 >>> fan.speed
 5
+>>> fan.add_time()
+
 ```
 
 The speed can also be controled in incrememnts instead of setting directly
