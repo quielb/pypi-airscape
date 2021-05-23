@@ -122,8 +122,6 @@ class Fan:
             )
             clean_text = "{ " + "\n".join(clean_list) + " }"
             self._data = json.loads(clean_text)
-            if "max_speed" not in self._data.keys():
-                self._data["max_speed"] = MAX_FAN_SPEED.get(self._data["model"], 10)
             return self._data
 
     def set_device_state(self, cmd) -> None:
