@@ -1,13 +1,12 @@
 """Module for Controlling AirScape Whole House Fans."""
-__version__ = "0.1.9"
+__version__ = "0.1.9.1"
 
 import re
 import json
 from time import sleep
 import requests
 
-from . import exceptions as ex
-from .const import MAX_FAN_SPEED, DEFAULT_TIMEOUT
+from . import exceptions as ex, MAX_FAN_SPEED, DEFAULT_TIMEOUT
 
 
 class Fan:
