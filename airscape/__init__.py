@@ -1,5 +1,5 @@
 """Module for Controlling AirScape Whole House Fans."""
-__version__ = "0.1.8.1"
+__version__ = "0.1.9"
 
 import re
 import json
@@ -7,8 +7,7 @@ from time import sleep
 import requests
 
 from . import exceptions as ex
-
-DEFAULT_TIMEOUT = 5
+from .const import MAX_FAN_SPEED, DEFAULT_TIMEOUT
 
 
 class Fan:
@@ -23,8 +22,7 @@ class Fan:
         self._command_api = "http://" + host + "/fanspd.cgi"
         self._status_api = "http://" + host + "/status.json.cgi"
         self._timeout = timeout
-        self._data = {}
-        self.get_device_state()
+        self._data = self.get_device_state()
 
     @property
     def is_on(self) -> bool:
@@ -55,7 +53,7 @@ class Fan:
     def speed(self) -> int:
         """Get the fan speed.
 
-        Returns int between 0 and 10.
+        Returns int between 0 and MAX_FAN_SPEED.
         """
         return self._data["fanspd"]
 
@@ -66,14 +64,14 @@ class Fan:
         Fan is not required to be on to set the speed.
         It will turn on and then adjust to specified speed.
         """
-        # Turn on and wait for damper doors before speeding up
-        if not self.is_on:
-            self.is_on = True
-
         # Speed of 0 is assumed to mean off
         if speed == 0:
             self.is_on = False
             return
+
+        # Turn on and wait for damper doors before speeding up
+        if not self.is_on:
+            self.is_on = True
 
         command = 1
         if speed < self._data["fanspd"]:
@@ -86,18 +84,23 @@ class Fan:
             # doesn't allow for _data{} to update
             sleep(0.75)
 
+    @property
+    def max_speed(self):
+        """Return maximum speed of fan."""
+        return MAX_FAN_SPEED.get(self._data["model"], 10)
+
     def speed_up(self):
         """Increase fan speed by 1."""
-        if 1 <= self._data["fanspd"] <= 9:
+        if 1 <= self._data["fanspd"] < MAX_FAN_SPEED.get(self._data["model"], 10):
             self.set_device_state(1)
 
     def slow_down(self):
         """Decrease fan speed by 1."""
-        if 2 <= self._data["fanspd"] <= 10:
+        if self._data["fanspd"] > 1:
             self.set_device_state(3)
 
     def add_time(self):
-        """ Use the API to add 1 hour to the shutoff timer."""
+        """Add 1 hour to the shutoff timer."""
         self.set_device_state(2)
 
     def get_device_state(self):
