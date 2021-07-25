@@ -1,2 +1,2 @@
 DEFAULT_TIMEOUT = 5
-MAX_FAN_SPEED = {"default": 10, "1.7WHF": 2}
+MAX_FAN_SPEED = {"default": 10, "1.7WHF": 2, "3.5eWHF": 7}
