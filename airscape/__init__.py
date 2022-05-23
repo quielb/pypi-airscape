@@ -1,5 +1,5 @@
 """Module for Controlling AirScape Whole House Fans."""
-__version__ = "0.1.9.3"
+__version__ = "0.1.9.4"
 
 import re
 import json
@@ -7,7 +7,7 @@ from time import sleep
 import requests
 
 from . import exceptions as ex
-from .const import MAX_FAN_SPEED, DEFAULT_TIMEOUT
+from .const import MAX_FAN_SPEED, DEFAULT_TIMEOUT, STATUS_KEYS
 
 
 class Fan:
@@ -20,9 +20,10 @@ class Fan:
     def __init__(self, host, timeout=DEFAULT_TIMEOUT):
         """Initialize a fan."""
         self._command_api = "http://" + host + "/fanspd.cgi"
-        self._status_api = "http://" + host + "/status.json.cgi"
+        self._status_api = "http://" + host + "/fanspd.cgi?dir"
         self._timeout = timeout
-        self._data = self.get_device_state()
+        self._data = {}
+        self.get_device_state()
 
     @property
     def is_on(self) -> bool:
@@ -87,11 +88,15 @@ class Fan:
     @property
     def max_speed(self):
         """Return maximum speed of fan."""
-        return MAX_FAN_SPEED.get(self._data["model"], 10)
+        return MAX_FAN_SPEED.get(self._data["model"], MAX_FAN_SPEED["default"])
 
     def speed_up(self):
         """Increase fan speed by 1."""
-        if 1 <= self._data["fanspd"] < MAX_FAN_SPEED.get(self._data["model"], 10):
+        if (
+            1
+            <= self._data["fanspd"]
+            < MAX_FAN_SPEED.get(self._data["model"], MAX_FAN_SPEED["default"])
+        ):
             self.set_device_state(1)
 
     def slow_down(self):
@@ -115,13 +120,11 @@ class Fan:
         except requests.exceptions.ReadTimeout:
             raise ex.Timeout from requests.exceptions.ReadTimeout
         else:
-            # There is a line in the text that has some control characters
-            # Those break converting JSON.  Clean it out then JSON->DICT
-            clean_list = re.findall(
-                r"(?!\s+.*server_response\".*$)^\s+\"\w+.*", api.text, re.M
-            )
-            clean_text = "{ " + "\n".join(clean_list) + " }"
-            self._data = json.loads(clean_text)
+            # Parse through the string return data for STATUS_KEYS{}
+            for k, v in STATUS_KEYS.items():
+                re_pattern = "(<" + v + ">)(.*)(<\/" + v + ">)"
+                self._data[k] = re.search(re_pattern, api.text).group(2)
+
             return self._data
 
     def set_device_state(self, cmd) -> None:
