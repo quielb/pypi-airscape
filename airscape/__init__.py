@@ -1,5 +1,5 @@
 """Module for Controlling AirScape Whole House Fans."""
-__version__ = "0.1.9.3"
+__version__ = "0.1.9.4"
 
 import re
 import json
@@ -7,7 +7,7 @@ from time import sleep
 import requests
 
 from . import exceptions as ex
-from .const import MAX_FAN_SPEED, DEFAULT_TIMEOUT
+from .const import MAX_FAN_SPEED, DEFAULT_TIMEOUT, STATUS_KEYS, CAST_TO_INT
 
 
 class Fan:
@@ -20,9 +20,10 @@ class Fan:
     def __init__(self, host, timeout=DEFAULT_TIMEOUT):
         """Initialize a fan."""
         self._command_api = "http://" + host + "/fanspd.cgi"
-        self._status_api = "http://" + host + "/status.json.cgi"
+        self._status_api = "http://" + host + "/fanspd.cgi?dir"
         self._timeout = timeout
-        self._data = self.get_device_state()
+        self._data = {}
+        self.get_device_state()
 
     @property
     def is_on(self) -> bool:
@@ -77,21 +78,26 @@ class Fan:
         if speed < self._data["fanspd"]:
             command = 3
 
-        while self._data["fanspd"] != speed and self._data["fanspd"] != 0:
+        last_speed = self._data["fanspd"]
+        while speed != self._data["fanspd"]:
             self.set_device_state(command)
-            # Need a delay to wait for fan to process command
-            # an increase of 1 isn't an issue.  But several rapid calls
-            # doesn't allow for _data{} to update
             sleep(0.75)
+            if last_speed == self._data["fanspd"]:
+                break
+            last_speed = self._data["fanspd"]
 
     @property
     def max_speed(self):
         """Return maximum speed of fan."""
-        return MAX_FAN_SPEED.get(self._data["model"], 10)
+        return MAX_FAN_SPEED.get(self._data["model"], MAX_FAN_SPEED["default"])
 
     def speed_up(self):
         """Increase fan speed by 1."""
-        if 1 <= self._data["fanspd"] < MAX_FAN_SPEED.get(self._data["model"], 10):
+        if (
+            1
+            <= self._data["fanspd"]
+            < MAX_FAN_SPEED.get(self._data["model"], MAX_FAN_SPEED["default"])
+        ):
             self.set_device_state(1)
 
     def slow_down(self):
@@ -103,26 +109,27 @@ class Fan:
         """Add 1 hour to the shutoff timer."""
         self.set_device_state(2)
 
-    def get_device_state(self):
+    def get_device_state(self, fan_state=None):
         """Get refresh data from fan.
 
         Function returns Dict of fan state data.
         """
-        try:
-            api = requests.get(self._status_api, timeout=self._timeout)
-        except requests.exceptions.ConnectionError:
-            raise ex.ConnectionError from requests.exceptions.ConnectionError
-        except requests.exceptions.ReadTimeout:
-            raise ex.Timeout from requests.exceptions.ReadTimeout
-        else:
-            # There is a line in the text that has some control characters
-            # Those break converting JSON.  Clean it out then JSON->DICT
-            clean_list = re.findall(
-                r"(?!\s+.*server_response\".*$)^\s+\"\w+.*", api.text, re.M
-            )
-            clean_text = "{ " + "\n".join(clean_list) + " }"
-            self._data = json.loads(clean_text)
-            return self._data
+
+        if fan_state is None:
+            try:
+                api = requests.get(self._status_api, timeout=self._timeout)
+                fan_state = api.text
+            except requests.exceptions.ConnectionError:
+                raise ex.ConnectionError from requests.exceptions.ConnectionError
+            except requests.exceptions.ReadTimeout:
+                raise ex.Timeout from requests.exceptions.ReadTimeout
+        # Parse through the string return data for STATUS_KEYS{}
+        for k, v in STATUS_KEYS.items():
+            re_pattern = "(<" + v + ">)(.*)(<\/" + v + ">)"
+            self._data[k] = re.search(re_pattern, fan_state).group(2)
+            if k in CAST_TO_INT:
+                self._data[k] = int(self._data[k])
+        return self._data
 
     def set_device_state(self, cmd) -> None:
         """Set state of fan.
@@ -135,12 +142,11 @@ class Fan:
         4: Turn off (slowing down to speed of 0 does not turn off fan)
         """
         try:
-            requests.get(self._command_api, params={"dir": cmd}, timeout=self._timeout)
+            api = requests.get(
+                self._command_api, params={"dir": cmd}, timeout=self._timeout
+            )
+            self.get_device_state(api.text)
         except requests.exceptions.ConnectionError:
             raise ex.ConnectionError from requests.exceptions.ConnectionError
         except requests.exceptions.ReadTimeout:
             raise ex.Timeout from requests.exceptions.ReadTimeout
-        else:
-            # Don't use non-std XML response.  Hit the fan API again
-            # to get JSON formatted response
-            self.get_device_state()
