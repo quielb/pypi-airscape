@@ -20,3 +20,13 @@ STATUS_KEYS = {
     "setpoint": "Setpoint",
     "dns": "DNS1",
 }
+CAST_TO_INT = [
+    "fanspd",
+    "timeremaining",
+    "cfm",
+    "power",
+    "inside",
+    "attic",
+    "oa",
+    "doorinprocess",
+]
